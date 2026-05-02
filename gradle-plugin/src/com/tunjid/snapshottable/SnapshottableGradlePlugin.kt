@@ -1,7 +1,10 @@
 package com.tunjid.snapshottable
 
 import com.tunjid.snapshottable.BuildConfig.ANNOTATIONS_LIBRARY_COORDINATES
+import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.plugins.AppliedPlugin
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceSetContainer
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
@@ -42,6 +45,17 @@ class SnapshottableGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 }
             }
         }
+
+        val configureAndroidDeps = Action<AppliedPlugin> {
+            target.configurations
+                .matching(Configuration::matchesImplementation)
+                .configureEach { config ->
+                    config.dependencies.addLater(annotationDependency)
+                }
+        }
+
+        target.pluginManager.withPlugin(ANDROID_APP_PLUGIN, configureAndroidDeps)
+        target.pluginManager.withPlugin(ANDROID_LIBRARY_PLUGIN, configureAndroidDeps)
     }
 
     override fun isApplicable(kotlinCompilation: KotlinCompilation<*>): Boolean = true
@@ -66,8 +80,19 @@ class SnapshottableGradlePlugin : KotlinCompilerPluginSupportPlugin {
     }
 }
 
+private fun Configuration.matchesImplementation() =
+    name == IMPLEMENTATION ||
+        name == TEST_IMPLEMENTATION ||
+        name == ANDROID_TEST_IMPLEMENTATION
+
 private const val KotlinExtension = "kotlin"
 private const val SourceSetsExtension = "sourceSets"
 
 private const val MULTIPLATFORM_PLUGIN = "org.jetbrains.kotlin.multiplatform"
+private const val ANDROID_APP_PLUGIN = "com.android.application"
+private const val ANDROID_LIBRARY_PLUGIN = "com.android.library"
 private const val JVM_PLUGIN = "org.jetbrains.kotlin.jvm"
+
+private const val IMPLEMENTATION = "implementation"
+private const val TEST_IMPLEMENTATION = "testImplementation"
+private const val ANDROID_TEST_IMPLEMENTATION = "androidTestImplementation"
