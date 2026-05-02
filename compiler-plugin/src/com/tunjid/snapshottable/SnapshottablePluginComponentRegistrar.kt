@@ -20,8 +20,14 @@ class SnapshottablePluginComponentRegistrar : CompilerPluginRegistrar() {
             return
         }
         with(compatContext) {
-            registerFirExtensionCompat(SnapshottablePluginRegistrar(compatContext))
-            registerIrExtensionCompat(SnapshottableIrGenerationExtension())
+            registerFirExtensionCompat(
+                SnapshottablePluginRegistrar(
+                    compatContext = compatContext,
+                )
+            )
+            registerIrExtensionCompat(
+                SnapshottableIrGenerationExtension()
+            )
         }
     }
 }

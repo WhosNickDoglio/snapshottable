@@ -20,6 +20,10 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.utils.mapToSetOrEmpty
 
+fun CompatContext.snapshottableClassGenerator(
+    session: FirSession
+): SnapshottableClassGenerator = SnapshottableClassGenerator(session, this)
+
 class SnapshottableClassGenerator(
     session: FirSession,
     private val compatContext: CompatContext,

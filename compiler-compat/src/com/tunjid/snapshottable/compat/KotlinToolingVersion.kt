@@ -31,6 +31,18 @@ public fun KotlinToolingVersion(kotlinVersionString: String): KotlinToolingVersi
     )
 }
 
+internal fun KotlinToolingVersion(
+    kotlinVersion: KotlinVersion,
+    classifier: String? = null,
+): KotlinToolingVersion {
+    return KotlinToolingVersion(
+        kotlinVersion.major,
+        kotlinVersion.minor,
+        kotlinVersion.patch,
+        classifier,
+    )
+}
+
 public class KotlinToolingVersion(
     public val major: Int,
     public val minor: Int,
@@ -63,10 +75,26 @@ public class KotlinToolingVersion(
 
     override fun compareTo(other: KotlinToolingVersion): Int {
         if (this == other) return 0
-        (this.major - other.major).takeIf { it != 0 }?.let { return it }
-        (this.minor - other.minor).takeIf { it != 0 }?.let { return it }
-        (this.patch - other.patch).takeIf { it != 0 }?.let { return it }
-        (this.maturity.ordinal - other.maturity.ordinal).takeIf { it != 0 }?.let { return it }
+        (this.major - other.major)
+            .takeIf { it != 0 }
+            ?.let {
+                return it
+            }
+        (this.minor - other.minor)
+            .takeIf { it != 0 }
+            ?.let {
+                return it
+            }
+        (this.patch - other.patch)
+            .takeIf { it != 0 }
+            ?.let {
+                return it
+            }
+        (this.maturity.ordinal - other.maturity.ordinal)
+            .takeIf { it != 0 }
+            ?.let {
+                return it
+            }
 
         if (this.classifier == null && other.classifier != null) {
             /* eg. 1.6.20 > 1.6.20-200 */
@@ -81,7 +109,11 @@ public class KotlinToolingVersion(
         val thisClassifierNumber = this.classifierNumber
         val otherClassifierNumber = other.classifierNumber
         if (thisClassifierNumber != null && otherClassifierNumber != null) {
-            (thisClassifierNumber - otherClassifierNumber).takeIf { it != 0 }?.let { return it }
+            (thisClassifierNumber - otherClassifierNumber)
+                .takeIf { it != 0 }
+                ?.let {
+                    return it
+                }
         }
 
         if (thisClassifierNumber != null && otherClassifierNumber == null) {
@@ -97,7 +129,11 @@ public class KotlinToolingVersion(
         val thisBuildNumber = this.buildNumber
         val otherBuildNumber = other.buildNumber
         if (thisBuildNumber != null && otherBuildNumber != null) {
-            (thisBuildNumber - otherBuildNumber).takeIf { it != 0 }?.let { return it }
+            (thisBuildNumber - otherBuildNumber)
+                .takeIf { it != 0 }
+                ?.let {
+                    return it
+                }
         }
 
         if (thisBuildNumber == null && otherBuildNumber != null) {
@@ -136,6 +172,37 @@ public class KotlinToolingVersion(
     }
 }
 
+internal fun KotlinToolingVersion.toKotlinVersion(): KotlinVersion =
+    KotlinVersion(major, minor, patch)
+
+internal fun KotlinVersion.toKotlinToolingVersion(
+    classifier: String? = null
+): KotlinToolingVersion = KotlinToolingVersion(this, classifier)
+
+internal val KotlinToolingVersion.isSnapshot: Boolean
+    get() = this.maturity == KotlinToolingVersion.Maturity.SNAPSHOT
+
+internal val KotlinToolingVersion.isDev: Boolean
+    get() = this.maturity == KotlinToolingVersion.Maturity.DEV
+
+internal val KotlinToolingVersion.isMilestone: Boolean
+    get() = this.maturity == KotlinToolingVersion.Maturity.MILESTONE
+
+internal val KotlinToolingVersion.isAlpha: Boolean
+    get() = this.maturity == KotlinToolingVersion.Maturity.ALPHA
+
+internal val KotlinToolingVersion.isBeta: Boolean
+    get() = this.maturity == KotlinToolingVersion.Maturity.BETA
+
+internal val KotlinToolingVersion.isRC: Boolean
+    get() = this.maturity == KotlinToolingVersion.Maturity.RC
+
+internal val KotlinToolingVersion.isStable: Boolean
+    get() = this.maturity == KotlinToolingVersion.Maturity.STABLE
+
+internal val KotlinToolingVersion.isPreRelease: Boolean
+    get() = !isStable
+
 internal val KotlinToolingVersion.buildNumber: Int?
     get() {
         if (classifier == null) return null
@@ -145,7 +212,8 @@ internal val KotlinToolingVersion.buildNumber: Int?
         like:
         1.6.20-1
         1.6.20-22
-        */
+        1.6.
+         */
         val buildNumberOnlyClassifierRegex = Regex("\\d+")
         if (buildNumberOnlyClassifierRegex.matches(classifier)) {
             return classifier.toIntOrNull()
@@ -163,12 +231,14 @@ internal val KotlinToolingVersion.classifierNumber: Int?
         /*
         dev builds allow additional wildcards in the version (like 1.6.20-dev-myWildcard21-510)
         In this case, 510 will be the buildNumber, but there is still no associated classifierNumber.
-        */
+        In order to keep the regex below simple, we fast path out here, since we know that
+        dev builds never carry classifier numbers
+         */
         if (maturity == KotlinToolingVersion.Maturity.DEV) return null
 
         /*
         Classifiers with only a buildNumber assigned
-        */
+         */
         val buildNumberOnlyClassifierRegex = Regex("\\d+")
         if (buildNumberOnlyClassifierRegex.matches(classifier)) {
             return null
@@ -178,3 +248,11 @@ internal val KotlinToolingVersion.classifierNumber: Int?
         val classifierMatch = classifierRegex.matchEntire(classifier) ?: return null
         return classifierMatch.groupValues.getOrNull(2)?.toIntOrNull()
     }
+
+internal operator fun String.compareTo(version: KotlinToolingVersion): Int {
+    return KotlinToolingVersion(this).compareTo(version)
+}
+
+internal operator fun KotlinToolingVersion.compareTo(kotlinVersionString: String): Int {
+    return this.compareTo(KotlinToolingVersion(kotlinVersionString))
+}

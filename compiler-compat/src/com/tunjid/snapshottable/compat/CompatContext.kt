@@ -124,65 +124,153 @@ public interface CompatContext {
 
     // ---- Factory / ServiceLoader plumbing ----
 
-    public interface Factory {
-        /** The lowest Kotlin compiler version this factory is compatible with. */
-        public val minVersion: String
-
-        /** Creates a [CompatContext] bound to this factory's compiler version. */
-        public fun create(): CompatContext
-
-        public companion object {
-            private const val COMPILER_VERSION_FILE = "META-INF/compiler.version"
-
-            /**
-             * Reads `META-INF/compiler.version` from the classloader that holds
-             * [FirExtensionRegistrar] (i.e. the kotlin-compiler jar's loader) and parses it as a
-             * [KotlinToolingVersion], or returns null if the file is not present or is blank.
-             */
-            public fun loadCompilerVersionOrNull(): KotlinToolingVersion? =
-                loadCompilerVersionStringOrNull()?.let(::KotlinToolingVersion)
-
-            private fun loadCompilerVersionStringOrNull(): String? {
-                val stream = FirExtensionRegistrar::class.java.classLoader
-                    ?.getResourceAsStream(COMPILER_VERSION_FILE) ?: return null
-                return stream.bufferedReader().use { it.readText() }.takeUnless(String::isBlank)
-            }
+    public companion object Companion {
+        private fun loadFactories(): Sequence<Factory> {
+            return ServiceLoader.load(Factory::class.java, Factory::class.java.classLoader).asSequence()
         }
-    }
 
-    public companion object {
         /**
-         * Loads all available [Factory] implementations via [ServiceLoader] and returns a
-         * [CompatContext] from the factory whose `minVersion` is the highest that is still
-         * `<=` [knownVersion] (or the detected compiler version, if [knownVersion] is null).
+         * Load [factories][Factory] and pick the highest compatible version (by [Factory.minVersion]).
          *
-         * @throws IllegalStateException if the compiler version cannot be determined or no
-         *   compatible factory is available.
+         * `dev` track versions are special-cased to avoid issues with divergent release tracks.
+         *
+         * When the current version is a dev build:
+         * 1. First, look for dev track factories and compare only within the dev track
+         * 2. If no dev factory matches, fall back to non-dev factories
+         *
+         * This ensures that a dev build like 2.3.20-dev-7791 doesn't incorrectly match a 2.3.20-Beta1
+         * factory just because beta > dev in maturity ordering.
          */
-        public fun create(knownVersion: KotlinToolingVersion? = null): CompatContext =
-            resolveFactory(knownVersion).create()
-
-        private fun loadFactories(): Sequence<Factory> =
-            ServiceLoader.load(Factory::class.java, Factory::class.java.classLoader).asSequence()
-
         internal fun resolveFactory(
             knownVersion: KotlinToolingVersion? = null,
             factories: Sequence<Factory> = loadFactories(),
         ): Factory {
-            val factoryList = factories.toList()
-            val current = knownVersion
-                ?: Factory.loadCompilerVersionOrNull()
+            // TODO short-circuit if we hit a factory with the exact version
+            val factoryDataList =
+                factories
+                    .mapNotNull { factory ->
+                        // Filter out any factories that can't compute the Kotlin version, as
+                        // they're _definitely_ not compatible
+                        try {
+                            FactoryData(factory.currentVersion, factory)
+                        } catch (_: Throwable) {
+                            null
+                        }
+                    }
+                    .toList()
+
+            val currentVersion =
+                knownVersion ?: factoryDataList.firstOrNull()?.version ?: error("No factories available")
+
+            val targetFactory = resolveFactoryForVersion(currentVersion, factoryDataList)
+            return targetFactory
                 ?: error(
-                    "Cannot determine Kotlin compiler version: 'META-INF/compiler.version' " +
-                        "was not found on the classpath and no knownVersion was supplied",
+                    """
+            Unrecognized Kotlin version!
+
+            Available factories for: ${factories.joinToString(separator = "\n") { it.minVersion }}
+            Detected version(s): ${factories.map { it.currentVersion }.distinct().joinToString(separator = "\n")}
+          """
+                        .trimIndent()
                 )
-            return factoryList
-                .filter { current >= KotlinToolingVersion(it.minVersion) }
-                .maxByOrNull { KotlinToolingVersion(it.minVersion) }
-                ?: error(
-                    "No compatible snapshottable compat factory for Kotlin $current. " +
-                        "Available factories: ${factoryList.joinToString { it.minVersion }}",
-                )
+        }
+
+        private fun resolveFactoryForVersion(
+            currentVersion: KotlinToolingVersion,
+            factoryDataList: List<FactoryData>,
+        ): Factory? {
+            // If current version is DEV, try DEV track factories first
+            if (currentVersion.isDev) {
+                val devFactories = factoryDataList.filter {
+                    KotlinToolingVersion(it.factory.minVersion).isDev
+                }
+                val devMatch = findHighestCompatibleFactory(currentVersion, devFactories)
+                if (devMatch != null) {
+                    return devMatch
+                }
+
+                // Fall back to non-DEV factories.
+                // Use the base version (strip dev classifier) for comparison, because
+                // 2.2.20-dev-5812 is a dev build OF 2.2.20 and should match the 2.2.20 factory,
+                // but KotlinToolingVersion ordering puts DEV < STABLE so the comparison would
+                // otherwise exclude it.
+                val nonDevFactories = factoryDataList.filter {
+                    !KotlinToolingVersion(it.factory.minVersion).isDev
+                }
+                val baseVersion =
+                    KotlinToolingVersion(
+                        currentVersion.major,
+                        currentVersion.minor,
+                        currentVersion.patch,
+                        null,
+                    )
+                return findHighestCompatibleFactory(baseVersion, nonDevFactories)
+            }
+
+            // For non-DEV versions, only consider non-DEV factories
+            val nonDevFactories = factoryDataList.filter {
+                !KotlinToolingVersion(it.factory.minVersion).isDev
+            }
+            return findHighestCompatibleFactory(currentVersion, nonDevFactories)
+        }
+
+        private fun findHighestCompatibleFactory(
+            currentVersion: KotlinToolingVersion,
+            factoryDataList: List<FactoryData>,
+        ): Factory? {
+            return factoryDataList
+                .filter { (_, factory) -> currentVersion >= KotlinToolingVersion(factory.minVersion) }
+                .maxByOrNull { (_, factory) -> KotlinToolingVersion(factory.minVersion) }
+                ?.factory
+        }
+
+        public fun create(knownVersion: KotlinToolingVersion? = null): CompatContext =
+            resolveFactory(knownVersion).create()
+    }
+
+    public interface Factory {
+        public val minVersion: String
+
+        /** Attempts to get the current compiler version or throws and exception if it cannot. */
+        public val currentVersion: String
+            get() = loadCompilerVersionString()
+
+        public fun create(): CompatContext
+
+        public companion object Companion {
+            private const val COMPILER_VERSION_FILE = "META-INF/compiler.version"
+
+            public fun loadCompilerVersion(): KotlinToolingVersion {
+                return KotlinToolingVersion(loadCompilerVersionString())
+            }
+
+            public fun loadCompilerVersionOrNull(): KotlinToolingVersion? {
+                return loadCompilerVersionStringOrNull()?.let(::KotlinToolingVersion)
+            }
+
+            public fun loadCompilerVersionString(): String {
+                return loadCompilerVersionStringOrNull()
+                    ?: throw AssertionError(
+                        "'$COMPILER_VERSION_FILE' not found in the classpath or was blank"
+                    )
+            }
+
+            public fun loadCompilerVersionStringOrNull(): String? {
+                val inputStream =
+                    FirExtensionRegistrar::class.java.classLoader?.getResourceAsStream(COMPILER_VERSION_FILE)
+                        ?: return null
+                return inputStream.bufferedReader().use { it.readText() }.takeUnless { it.isBlank() }
+            }
+        }
+    }
+
+    private data class FactoryData(
+        val version: KotlinToolingVersion,
+        val factory: Factory,
+    ) {
+        companion object {
+            operator fun invoke(version: String, factory: Factory): FactoryData =
+                FactoryData(KotlinToolingVersion(version), factory)
         }
     }
 }
