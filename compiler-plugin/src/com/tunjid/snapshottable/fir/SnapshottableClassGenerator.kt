@@ -1,6 +1,7 @@
 package com.tunjid.snapshottable.fir
 
 import com.tunjid.snapshottable.Snapshottable
+import com.tunjid.snapshottable.compat.CompatContext
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.extensions.FirDeclarationGenerationExtension
 import org.jetbrains.kotlin.fir.extensions.FirDeclarationPredicateRegistrar
@@ -19,8 +20,13 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.utils.mapToSetOrEmpty
 
+fun CompatContext.snapshottableClassGenerator(
+    session: FirSession
+): SnapshottableClassGenerator = SnapshottableClassGenerator(session, this)
+
 class SnapshottableClassGenerator(
     session: FirSession,
+    private val compatContext: CompatContext,
 ) : FirDeclarationGenerationExtension(session) {
 
     override fun FirDeclarationPredicateRegistrar.registerPredicates() {
@@ -54,6 +60,7 @@ class SnapshottableClassGenerator(
         return when (name) {
             CLASS_NAME_SNAPSHOT_MUTABLE -> generateMutableClass(
                 parentInterfaceSymbol = owner,
+                compatContext = compatContext,
             )
             else -> error("Can't generate class ${owner.classId.createNestedClassId(name).asSingleFqName()}")
         }
@@ -105,6 +112,7 @@ class SnapshottableClassGenerator(
                     createFunSnapshotUpdate(
                         mutableClassSymbol = owner,
                         callableId = callableId,
+                        compatContext = compatContext,
                     )
                 FUN_NAME_TO_SPEC ->
                     createFunConversion(
@@ -114,6 +122,7 @@ class SnapshottableClassGenerator(
                             nestedClassSymbol = owner,
                         ) ?: return emptyList(),
                         callableId = callableId,
+                        compatContext = compatContext,
                     )
                 else -> null
             }
@@ -130,6 +139,7 @@ class SnapshottableClassGenerator(
                             nestedClassSymbol = owner,
                         ) ?: return emptyList(),
                         callableId = callableId,
+                        compatContext = compatContext,
                     )
 
                 else -> null
@@ -155,6 +165,7 @@ class SnapshottableClassGenerator(
                         snapshottableInterfaceSymbol = owner,
                     ) ?: return emptyList(),
                     callableId = callableId,
+                    compatContext = compatContext,
                 )
                     ?.symbol
                     ?.let(::listOf)
@@ -167,6 +178,7 @@ class SnapshottableClassGenerator(
                         nestedClassSymbol = owner,
                     ) ?: return emptyList(),
                     callableId = callableId,
+                    compatContext = compatContext,
                 )
                     ?.symbol
                     ?.let(::listOf)
