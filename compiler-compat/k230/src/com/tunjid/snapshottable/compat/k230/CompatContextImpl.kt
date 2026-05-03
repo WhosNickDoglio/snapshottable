@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.fir.declarations.FirDeclarationStatus
 import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.extensions.FirExtension
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrarAdapter
@@ -87,6 +88,12 @@ public open class CompatContextImpl : CompatContext {
         classKind = classKind,
         config = config,
     )
+
+    override fun FirRegularClass.replaceAnnotationsCompat(
+        annotations: List<FirAnnotation>,
+    ) {
+        replaceAnnotations(annotations)
+    }
 
     override fun FirDeclarationStatus.copyCompat(
         isOverride: Boolean,

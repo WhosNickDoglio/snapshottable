@@ -177,6 +177,8 @@ FILE fqName:foo.bar fileName:/nullable.kt
                 receiver: GET_VAR '<this>: foo.bar.NullableState.Immutable declared in foo.bar.NullableState.Immutable.toString' type=foo.bar.NullableState.Immutable origin=null
               CONST String type=kotlin.String value=")"
     CLASS GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.SnapshotMutable] CLASS name:SnapshotMutable modality:FINAL visibility:public superTypes:[foo.bar.NullableState]
+      annotations:
+        Stable
       thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:foo.bar.NullableState.SnapshotMutable
       FIELD GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.Default] name:name$SnapshottableHolder type:androidx.compose.runtime.MutableState<kotlin.String?> visibility:private [final]
         EXPRESSION_BODY

@@ -444,6 +444,8 @@ FILE fqName:foo.bar fileName:/enums_sealed.kt
                 receiver: GET_VAR '<this>: foo.bar.EnumSealedState.Immutable declared in foo.bar.EnumSealedState.Immutable.toString' type=foo.bar.EnumSealedState.Immutable origin=null
               CONST String type=kotlin.String value=")"
     CLASS GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.SnapshotMutable] CLASS name:SnapshotMutable modality:FINAL visibility:public superTypes:[foo.bar.EnumSealedState]
+      annotations:
+        Stable
       thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:foo.bar.EnumSealedState.SnapshotMutable
       FIELD GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.Default] name:status$SnapshottableHolder type:androidx.compose.runtime.MutableState<foo.bar.Status> visibility:private [final]
         EXPRESSION_BODY

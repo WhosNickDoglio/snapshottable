@@ -159,6 +159,8 @@ FILE fqName:foo.bar fileName:/extra_properties.kt
                 receiver: GET_VAR '<this>: foo.bar.ExtraState.Immutable declared in foo.bar.ExtraState.Immutable.toString' type=foo.bar.ExtraState.Immutable origin=null
               CONST String type=kotlin.String value=")"
     CLASS GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.SnapshotMutable] CLASS name:SnapshotMutable modality:FINAL visibility:public superTypes:[foo.bar.ExtraState]
+      annotations:
+        Stable
       thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:foo.bar.ExtraState.SnapshotMutable
       FIELD GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.Default] name:base$SnapshottableHolder type:androidx.compose.runtime.MutableIntState visibility:private [final]
         EXPRESSION_BODY
