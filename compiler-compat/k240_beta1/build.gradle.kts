@@ -4,5 +4,5 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":compiler-compat:k240_beta1"))
+    implementation(project(":compiler-compat:k240_dev_2124"))
 }
