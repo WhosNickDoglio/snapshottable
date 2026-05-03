@@ -1,95 +1,47 @@
 package com.tunjid.snapshottable.compat.k2320
 
 import com.tunjid.snapshottable.compat.CompatContext
+import com.tunjid.snapshottable.compat.k230.CompatContextImpl as DelegateType
 import org.jetbrains.kotlin.GeneratedDeclarationKey
-import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
-import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
-import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibility
-import org.jetbrains.kotlin.fir.copy
+import org.jetbrains.kotlin.fir.copy as copyDeclarationNative
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationStatus
-import org.jetbrains.kotlin.fir.declarations.FirProperty
-import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.extensions.FirExtension
-import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
-import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrarAdapter
-import org.jetbrains.kotlin.fir.plugin.ClassBuildingContext
-import org.jetbrains.kotlin.fir.plugin.PropertyBuildingContext
 import org.jetbrains.kotlin.fir.plugin.SimpleFunctionBuildingContext
-import org.jetbrains.kotlin.fir.plugin.createMemberFunction
-import org.jetbrains.kotlin.fir.plugin.createMemberProperty
-import org.jetbrains.kotlin.fir.plugin.createNestedClass
+import org.jetbrains.kotlin.fir.plugin.createMemberFunction as createMemberFunctionNative
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.name.Name
 
-public class CompatContextImpl : CompatContext {
+public open class CompatContextImpl : CompatContext by DelegateType() {
 
-    override fun CompilerPluginRegistrar.ExtensionStorage.registerFirExtensionCompat(
-        extension: FirExtensionRegistrar,
-    ) {
-        FirExtensionRegistrarAdapter.registerExtension(extension)
-    }
-
-    override fun CompilerPluginRegistrar.ExtensionStorage.registerIrExtensionCompat(
-        extension: IrGenerationExtension,
-    ) {
-        IrGenerationExtension.registerExtension(extension)
-    }
-
+    // Compiled against kotlin-compiler:2.3.20, where createMemberFunction returns FirNamedFunction.
+    // The k230 delegate's bytecode references FirSimpleFunction (renamed away in 2.3.20), so this
+    // override is the one that actually links on a 2.3.20+ runtime.
     override fun FirExtension.createMemberFunctionCompat(
         owner: FirClassSymbol<*>,
         key: GeneratedDeclarationKey,
         name: Name,
         returnType: ConeKotlinType,
         config: SimpleFunctionBuildingContext.() -> Unit,
-    ): FirNamedFunctionSymbol = createMemberFunction(
+    ): FirFunction = createMemberFunctionNative(
         owner = owner,
         key = key,
         name = name,
         returnType = returnType,
         config = config,
-    ).symbol
-
-    override fun FirExtension.createMemberPropertyCompat(
-        owner: FirClassSymbol<*>,
-        key: GeneratedDeclarationKey,
-        name: Name,
-        returnType: ConeKotlinType,
-        isVal: Boolean,
-        hasBackingField: Boolean,
-        config: PropertyBuildingContext.() -> Unit,
-    ): FirProperty = createMemberProperty(
-        owner = owner,
-        key = key,
-        name = name,
-        returnType = returnType,
-        isVal = isVal,
-        hasBackingField = hasBackingField,
-        config = config,
     )
 
-    override fun FirExtension.createNestedClassCompat(
-        owner: FirClassSymbol<*>,
-        name: Name,
-        key: GeneratedDeclarationKey,
-        classKind: ClassKind,
-        config: ClassBuildingContext.() -> Unit,
-    ): FirRegularClass = createNestedClass(
-        owner = owner,
-        name = name,
-        key = key,
-        classKind = classKind,
-        config = config,
-    )
-
+    // Defensive override: FirDeclarationStatus.copy gained extra parameters across the 2.3.x dev
+    // cycle. Recompiling this trivial wrapper here pins the call descriptor to whatever the 2.3.20
+    // artifact exposed, instead of inheriting the 2.3.0-shaped descriptor from the delegate.
     override fun FirDeclarationStatus.copyCompat(
         isOverride: Boolean,
         visibility: Visibility?,
         modality: Modality?,
-    ): FirDeclarationStatus = copy(
+    ): FirDeclarationStatus = copyDeclarationNative(
         isOverride = isOverride,
         visibility = visibility,
         modality = modality,

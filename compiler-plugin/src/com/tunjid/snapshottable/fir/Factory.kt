@@ -87,7 +87,7 @@ fun FirExtension.createFunSnapshotUpdate(
     compatContext: CompatContext,
 ): FirNamedFunctionSymbol {
     val key = mutableClassSymbol.requireKey<Snapshottable.Keys.SnapshotMutable>()
-    val symbol = with(compatContext) {
+    val function = with(compatContext) {
         createMemberFunctionCompat(
             owner = mutableClassSymbol,
             key = mutableClassSymbol.requireKey(),
@@ -108,12 +108,12 @@ fun FirExtension.createFunSnapshotUpdate(
                 }
         }
     }
-    for (param in symbol.fir.valueParameters) {
+    for (param in function.valueParameters) {
         if (param.defaultValue != null) {
             param.replaceDefaultValue(buildSafeDefaultValueStub(session))
         }
     }
-    return symbol
+    return function.symbol as FirNamedFunctionSymbol
 }
 
 fun FirExtension.createFunConversion(
@@ -132,7 +132,7 @@ fun FirExtension.createFunConversion(
                 .map(FirTypeParameterSymbol::toConeType)
                 .toTypedArray(),
         ),
-    )
+    ).symbol as FirNamedFunctionSymbol
 }
 
 fun FirExtension.maybeCreatePropertyOnInterfaceOrMutableClass(

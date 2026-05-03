@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationStatus
+import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.extensions.FirExtension
@@ -16,7 +17,6 @@ import org.jetbrains.kotlin.fir.plugin.ClassBuildingContext
 import org.jetbrains.kotlin.fir.plugin.PropertyBuildingContext
 import org.jetbrains.kotlin.fir.plugin.SimpleFunctionBuildingContext
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.name.Name
 
@@ -42,6 +42,11 @@ public interface CompatContext {
      *
      * Called from `SnapshottablePluginComponentRegistrar.registerExtensions`.
      */
+    @CompatApi(
+        since = "2.4.0-Beta2",
+        reason = CompatApi.Reason.ABI_CHANGE,
+        message = "ProjectExtensionDescriptor was replaced by ExtensionPointDescriptor in registerExtension",
+    )
     public fun CompilerPluginRegistrar.ExtensionStorage.registerFirExtensionCompat(
         extension: FirExtensionRegistrar,
     )
@@ -51,6 +56,11 @@ public interface CompatContext {
      *
      * Called from `SnapshottablePluginComponentRegistrar.registerExtensions`.
      */
+    @CompatApi(
+        since = "2.4.0-Beta2",
+        reason = CompatApi.Reason.ABI_CHANGE,
+        message = "ProjectExtensionDescriptor was replaced by ExtensionPointDescriptor in registerExtension",
+    )
     public fun CompilerPluginRegistrar.ExtensionStorage.registerIrExtensionCompat(
         extension: IrGenerationExtension,
     )
@@ -58,31 +68,44 @@ public interface CompatContext {
     // ---- FIR declaration-generation DSL (churn hotspot) ----
 
     /**
-     * Wraps `org.jetbrains.kotlin.fir.plugin.createMemberFunction`. The underlying
-     * `FirSimpleFunctionBuilder` was renamed to `FirNamedFunctionBuilder` in 2.3.20; the inlined
-     * DSL can produce runtime linkage errors when the plugin is compiled against a different
-     * builder type than the host compiler provides.
+     * Wraps `org.jetbrains.kotlin.fir.plugin.createMemberFunction`.
      *
-     * Returns the function symbol directly — the concrete FIR function class is named
-     * differently in each Kotlin version, so the symbol (whose type is stable) is the friendlier
-     * return value. Callers that need to mutate the underlying declaration can do so via
-     * `symbol.fir`.
+     * The native function returns `FirSimpleFunction` in Kotlin 2.3.0 and earlier; it was renamed
+     * to `FirNamedFunction` in 2.3.20. The JVM resolves methods by full descriptor (return type
+     * included), so a plugin compiled against the new shape will throw `NoSuchMethodError` when
+     * loaded into an IDE that bundles a pre-rename Kotlin compiler.
+     *
+     * The compat surface returns the stable supertype [FirFunction] — both `FirSimpleFunction`
+     * and `FirNamedFunction` extend it, so the interface signature does not churn across
+     * versions. Each per-version impl is compiled against its target Kotlin and emits the
+     * version-appropriate descriptor at the call site. Callers that need the symbol can do
+     * `result.symbol as FirNamedFunctionSymbol` (the symbol class kept its name).
      *
      * Called from `fir/Factory.kt` (`createFunSnapshotUpdate`, `createFunConversion`).
      */
+    @CompatApi(
+        since = "2.3.20",
+        reason = CompatApi.Reason.RENAMED,
+        message = "FirSimpleFunction was renamed to FirNamedFunction; return widened to FirFunction",
+    )
     public fun FirExtension.createMemberFunctionCompat(
         owner: FirClassSymbol<*>,
         key: GeneratedDeclarationKey,
         name: Name,
         returnType: ConeKotlinType,
         config: SimpleFunctionBuildingContext.() -> Unit = {},
-    ): FirNamedFunctionSymbol
+    ): FirFunction
 
     /**
      * Wraps `org.jetbrains.kotlin.fir.plugin.createMemberProperty`.
      *
      * Called from `fir/Factory.kt` (`maybeCreatePropertyOnInterfaceOrMutableClass`).
      */
+    @CompatApi(
+        since = "2.3.0",
+        reason = CompatApi.Reason.COMPAT,
+        message = "Wrapped defensively — surrounding builder DSL is inline and prone to ABI churn",
+    )
     public fun FirExtension.createMemberPropertyCompat(
         owner: FirClassSymbol<*>,
         key: GeneratedDeclarationKey,
@@ -98,6 +121,11 @@ public interface CompatContext {
      *
      * Called from `fir/Factory.kt` (`generateMutableClass`).
      */
+    @CompatApi(
+        since = "2.3.0",
+        reason = CompatApi.Reason.COMPAT,
+        message = "Wrapped defensively — surrounding builder DSL is inline and prone to ABI churn",
+    )
     public fun FirExtension.createNestedClassCompat(
         owner: FirClassSymbol<*>,
         name: Name,
@@ -116,6 +144,11 @@ public interface CompatContext {
      *
      * Called from `fir/SnapshottableStatusTransformer.transformStatus`.
      */
+    @CompatApi(
+        since = "2.3.0",
+        reason = CompatApi.Reason.ABI_CHANGE,
+        message = "Native copy() gained hasMustUseReturnValue/returnValueStatus across 2.3.x",
+    )
     public fun FirDeclarationStatus.copyCompat(
         isOverride: Boolean = this.isOverride,
         visibility: Visibility? = this.visibility,
@@ -226,6 +259,26 @@ public interface CompatContext {
 
         public fun create(knownVersion: KotlinToolingVersion? = null): CompatContext =
             resolveFactory(knownVersion).create()
+
+        /**
+         * Loads the raw `META-INF/compiler.version` from the classpath, runs it through the
+         * built-in [CompilerVersionAliases] table (overlaid by [userAliases]), and resolves the
+         * matching factory. Returns `null` if no version can be detected, or if the alias table
+         * marks the detected version as [CompilerVersionAliases.CLI_ONLY] — in either case the
+         * caller should skip plugin registration rather than crash.
+         *
+         * This is the path IDE-hosted plugins should use: IntelliJ and Android Studio routinely
+         * report fake compiler version strings (e.g. `2.3.20-ij253-87`, `2.3.255-dev-255`) that
+         * don't correspond to any real Kotlin release. The alias table maps those to the actual
+         * underlying compiler version so factory selection picks the right impl.
+         */
+        public fun createForRuntime(
+            userAliases: Map<String, String> = emptyMap(),
+        ): CompatContext? {
+            val rawVersion = Factory.loadCompilerVersionOrNull() ?: return null
+            val resolved = CompilerVersionAliases.map(rawVersion, userAliases) ?: return null
+            return create(resolved)
+        }
     }
 
     public interface Factory {
