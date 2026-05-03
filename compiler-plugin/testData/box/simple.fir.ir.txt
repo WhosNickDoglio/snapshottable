@@ -322,6 +322,8 @@ FILE fqName:foo.bar fileName:/simple.kt
                 receiver: GET_VAR '<this>: foo.bar.State.Immutable declared in foo.bar.State.Immutable.toString' type=foo.bar.State.Immutable origin=null
               CONST String type=kotlin.String value=")"
     CLASS GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.SnapshotMutable] CLASS name:SnapshotMutable modality:FINAL visibility:public superTypes:[foo.bar.State]
+      annotations:
+        Stable
       thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:foo.bar.State.SnapshotMutable
       FIELD GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.Default] name:activity$SnapshottableHolder type:androidx.compose.runtime.MutableState<kotlin.String> visibility:private [final]
         EXPRESSION_BODY

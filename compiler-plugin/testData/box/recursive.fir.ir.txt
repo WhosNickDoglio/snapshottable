@@ -168,6 +168,8 @@ FILE fqName:foo.bar fileName:/recursive.kt
                 receiver: GET_VAR '<this>: foo.bar.Node.Immutable declared in foo.bar.Node.Immutable.toString' type=foo.bar.Node.Immutable origin=null
               CONST String type=kotlin.String value=")"
     CLASS GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.SnapshotMutable] CLASS name:SnapshotMutable modality:FINAL visibility:public superTypes:[foo.bar.Node]
+      annotations:
+        Stable
       thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:foo.bar.Node.SnapshotMutable
       FIELD GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.Default] name:value$SnapshottableHolder type:androidx.compose.runtime.MutableIntState visibility:private [final]
         EXPRESSION_BODY

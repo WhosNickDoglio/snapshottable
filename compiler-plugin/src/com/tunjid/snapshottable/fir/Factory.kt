@@ -12,7 +12,9 @@ import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.declaredProperties
 import org.jetbrains.kotlin.fir.declarations.utils.isInterface
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
+import org.jetbrains.kotlin.fir.expressions.impl.FirEmptyAnnotationArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.buildResolvedArgumentList
+import org.jetbrains.kotlin.fir.expressions.builder.buildAnnotation
 import org.jetbrains.kotlin.fir.expressions.builder.buildArgumentList
 import org.jetbrains.kotlin.fir.expressions.builder.buildFunctionCall
 import org.jetbrains.kotlin.fir.expressions.builder.buildLiteralExpression
@@ -25,10 +27,13 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
+import org.jetbrains.kotlin.fir.types.constructClassLikeType
 import org.jetbrains.kotlin.fir.types.constructType
+import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.ir.util.kotlinPackageFqn
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.types.ConstantValueKind
@@ -40,6 +45,11 @@ val FUN_NAME_TO_SNAPSHOT_MUTABLE = Name.identifier("toSnapshotMutable")
 
 val ClassId.mutable: ClassId get() = createNestedClassId(CLASS_NAME_SNAPSHOT_MUTABLE)
 val ClassId.companion: ClassId get() = createNestedClassId(SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT)
+
+private val COMPOSE_STABLE_CLASS_ID = ClassId(
+    FqName("androidx.compose.runtime"),
+    Name.identifier("Stable"),
+)
 
 inline fun <reified T : Snapshottable.Keys> FirClassSymbol<*>.requireKey(): T {
     val plugin = origin as? FirDeclarationOrigin.Plugin
@@ -69,7 +79,7 @@ fun FirExtension.generateMutableClass(
         ?: return@with null
 
     with(compatContext) {
-        createNestedClassCompat(
+        val firClass = createNestedClassCompat(
             owner = parentInterfaceSymbol,
             name = CLASS_NAME_SNAPSHOT_MUTABLE,
             key = Snapshottable.Keys.SnapshotMutable(
@@ -77,7 +87,38 @@ fun FirExtension.generateMutableClass(
             ),
         ) {
             superType(parentInterfaceSymbol.defaultType())
-        }.symbol
+        }
+        applyComposeStableAnnotation(firClass, session, compatContext)
+        firClass.symbol
+    }
+}
+
+/**
+ * Tags the class with `androidx.compose.runtime.Stable` so that the Compose stability checker
+ * treats every snapshot-mutable instance as observably-stable: each property is backed by a
+ * `MutableState`, so any mutation is recomposition-trackable.
+ *
+ * No-op when the Compose runtime isn't on the classpath — this plugin doesn't take a hard
+ * dependency on Compose, so a non-Compose project just gets an unannotated `SnapshotMutable`.
+ */
+private fun applyComposeStableAnnotation(
+    firClass: org.jetbrains.kotlin.fir.declarations.FirRegularClass,
+    session: FirSession,
+    compatContext: CompatContext,
+) {
+    session.findClassSymbol(COMPOSE_STABLE_CLASS_ID) ?: return
+
+    val stableAnnotation = buildAnnotation {
+        annotationTypeRef = buildResolvedTypeRef {
+            coneType = COMPOSE_STABLE_CLASS_ID.constructClassLikeType(
+                typeArguments = emptyArray(),
+                isMarkedNullable = false,
+            )
+        }
+        argumentMapping = FirEmptyAnnotationArgumentMapping
+    }
+    with(compatContext) {
+        firClass.replaceAnnotationsCompat(firClass.annotations + stableAnnotation)
     }
 }
 

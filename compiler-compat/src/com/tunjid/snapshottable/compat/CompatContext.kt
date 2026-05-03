@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.fir.declarations.FirDeclarationStatus
 import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.extensions.FirExtension
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.plugin.ClassBuildingContext
@@ -133,6 +134,24 @@ public interface CompatContext {
         classKind: ClassKind = ClassKind.CLASS,
         config: ClassBuildingContext.() -> Unit = {},
     ): FirRegularClass
+
+    /**
+     * Wraps `FirAnnotationContainer.replaceAnnotations(...)` for [FirRegularClass]. The replace
+     * surface itself is stable, but it sits next to inline FIR builder DSL (`buildAnnotation`,
+     * `buildResolvedTypeRef`, `FirEmptyAnnotationArgumentMapping`) used to construct the input —
+     * pinning the mutation behind a per-version impl gives us a single hook to swap if the
+     * surrounding construction shape moves.
+     *
+     * Called from `fir/Factory.kt` (`applyComposeStableAnnotation`).
+     */
+    @CompatApi(
+        since = "2.3.0",
+        reason = CompatApi.Reason.COMPAT,
+        message = "Wrapped defensively — adjacent FIR annotation builder DSL is inline and prone to ABI churn",
+    )
+    public fun FirRegularClass.replaceAnnotationsCompat(
+        annotations: List<FirAnnotation>,
+    )
 
     // ---- Defensive wrap: FirDeclarationStatus.copy ----
 

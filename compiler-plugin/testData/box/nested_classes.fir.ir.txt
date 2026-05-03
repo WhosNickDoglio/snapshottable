@@ -108,6 +108,8 @@ FILE fqName:foo.bar fileName:/nested_classes.kt
                   receiver: GET_VAR '<this>: foo.bar.Outer.InnerState.Immutable declared in foo.bar.Outer.InnerState.Immutable.toString' type=foo.bar.Outer.InnerState.Immutable origin=null
                 CONST String type=kotlin.String value=")"
       CLASS GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.SnapshotMutable] CLASS name:SnapshotMutable modality:FINAL visibility:public superTypes:[foo.bar.Outer.InnerState]
+        annotations:
+          Stable
         thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:foo.bar.Outer.InnerState.SnapshotMutable
         FIELD GENERATED[com.tunjid.snapshottable.Snapshottable.Keys.Default] name:value$SnapshottableHolder type:androidx.compose.runtime.MutableState<kotlin.String> visibility:private [final]
           EXPRESSION_BODY
