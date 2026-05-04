@@ -18,7 +18,10 @@ import org.jetbrains.kotlin.fir.plugin.ClassBuildingContext
 import org.jetbrains.kotlin.fir.plugin.PropertyBuildingContext
 import org.jetbrains.kotlin.fir.plugin.SimpleFunctionBuildingContext
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.name.Name
 
 /**
@@ -33,7 +36,7 @@ import org.jetbrains.kotlin.name.Name
  * The surface is intentionally narrow — methods enter this interface only when an actual
  * incompatibility between supported Kotlin versions can be demonstrated.
  */
-public interface CompatContext {
+interface CompatContext {
 
     // ---- Extension registration ----
 
@@ -48,7 +51,7 @@ public interface CompatContext {
         reason = CompatApi.Reason.ABI_CHANGE,
         message = "ProjectExtensionDescriptor was replaced by ExtensionPointDescriptor in registerExtension",
     )
-    public fun CompilerPluginRegistrar.ExtensionStorage.registerFirExtensionCompat(
+    fun CompilerPluginRegistrar.ExtensionStorage.registerFirExtensionCompat(
         extension: FirExtensionRegistrar,
     )
 
@@ -62,7 +65,7 @@ public interface CompatContext {
         reason = CompatApi.Reason.ABI_CHANGE,
         message = "ProjectExtensionDescriptor was replaced by ExtensionPointDescriptor in registerExtension",
     )
-    public fun CompilerPluginRegistrar.ExtensionStorage.registerIrExtensionCompat(
+    fun CompilerPluginRegistrar.ExtensionStorage.registerIrExtensionCompat(
         extension: IrGenerationExtension,
     )
 
@@ -89,7 +92,7 @@ public interface CompatContext {
         reason = CompatApi.Reason.RENAMED,
         message = "FirSimpleFunction was renamed to FirNamedFunction; return widened to FirFunction",
     )
-    public fun FirExtension.createMemberFunctionCompat(
+    fun FirExtension.createMemberFunctionCompat(
         owner: FirClassSymbol<*>,
         key: GeneratedDeclarationKey,
         name: Name,
@@ -107,7 +110,7 @@ public interface CompatContext {
         reason = CompatApi.Reason.COMPAT,
         message = "Wrapped defensively — surrounding builder DSL is inline and prone to ABI churn",
     )
-    public fun FirExtension.createMemberPropertyCompat(
+    fun FirExtension.createMemberPropertyCompat(
         owner: FirClassSymbol<*>,
         key: GeneratedDeclarationKey,
         name: Name,
@@ -127,7 +130,7 @@ public interface CompatContext {
         reason = CompatApi.Reason.COMPAT,
         message = "Wrapped defensively — surrounding builder DSL is inline and prone to ABI churn",
     )
-    public fun FirExtension.createNestedClassCompat(
+    fun FirExtension.createNestedClassCompat(
         owner: FirClassSymbol<*>,
         name: Name,
         key: GeneratedDeclarationKey,
@@ -149,9 +152,38 @@ public interface CompatContext {
         reason = CompatApi.Reason.COMPAT,
         message = "Wrapped defensively — adjacent FIR annotation builder DSL is inline and prone to ABI churn",
     )
-    public fun FirRegularClass.replaceAnnotationsCompat(
+    fun FirRegularClass.replaceAnnotationsCompat(
         annotations: List<FirAnnotation>,
     )
+
+    // ---- Phase-independent type resolution ----
+
+    /**
+     * Resolves [typeRef] to a [FirResolvedTypeRef] using [contextSymbol]'s containing file as
+     * the scope owner.
+     *
+     * Use when a plugin runs in a phase earlier than `TYPES` (e.g. nested-class generation
+     * inside `SUPER_TYPES`) and `FirTypeParameterSymbol.resolvedBounds` would crash because the
+     * underlying ref is still a `FirUserTypeRef`. This bypasses phase resolution by driving
+     * `FirSpecificTypeResolverTransformer` over the file's importing scopes directly.
+     *
+     * Returns the input unchanged if it is already a [FirResolvedTypeRef].
+     *
+     * Lives in [CompatContext] because both `FirSpecificTypeResolverTransformer`'s constructor
+     * and `TypeResolutionConfiguration`'s parameters churn across Kotlin versions.
+     *
+     * Called from `fir/Factory.kt` (`generateMutableClass` — propagating spec type-parameter
+     * bounds onto the generated `SnapshotMutable` class).
+     */
+    @CompatApi(
+        since = "2.3.0",
+        reason = CompatApi.Reason.COMPAT,
+        message = "Wraps FirSpecificTypeResolverTransformer + TypeResolutionConfiguration; both ctors churn",
+    )
+    fun FirExtension.resolveTypeRefCompat(
+        typeRef: FirTypeRef,
+        contextSymbol: FirRegularClassSymbol,
+    ): FirResolvedTypeRef
 
     // ---- Defensive wrap: FirDeclarationStatus.copy ----
 
@@ -168,7 +200,7 @@ public interface CompatContext {
         reason = CompatApi.Reason.ABI_CHANGE,
         message = "Native copy() gained hasMustUseReturnValue/returnValueStatus across 2.3.x",
     )
-    public fun FirDeclarationStatus.copyCompat(
+    fun FirDeclarationStatus.copyCompat(
         isOverride: Boolean = this.isOverride,
         visibility: Visibility? = this.visibility,
         modality: Modality? = this.modality,
@@ -176,7 +208,7 @@ public interface CompatContext {
 
     // ---- Factory / ServiceLoader plumbing ----
 
-    public companion object Companion {
+    companion object Companion {
         private fun loadFactories(): Sequence<Factory> {
             return ServiceLoader.load(Factory::class.java, Factory::class.java.classLoader).asSequence()
         }
@@ -276,7 +308,7 @@ public interface CompatContext {
                 ?.factory
         }
 
-        public fun create(knownVersion: KotlinToolingVersion? = null): CompatContext =
+        fun create(knownVersion: KotlinToolingVersion? = null): CompatContext =
             resolveFactory(knownVersion).create()
 
         /**
@@ -291,7 +323,7 @@ public interface CompatContext {
          * don't correspond to any real Kotlin release. The alias table maps those to the actual
          * underlying compiler version so factory selection picks the right impl.
          */
-        public fun createForRuntime(
+        fun createForRuntime(
             userAliases: Map<String, String> = emptyMap(),
         ): CompatContext? {
             val rawVersion = Factory.loadCompilerVersionOrNull() ?: return null
@@ -300,34 +332,34 @@ public interface CompatContext {
         }
     }
 
-    public interface Factory {
-        public val minVersion: String
+    interface Factory {
+        val minVersion: String
 
         /** Attempts to get the current compiler version or throws and exception if it cannot. */
-        public val currentVersion: String
+        val currentVersion: String
             get() = loadCompilerVersionString()
 
-        public fun create(): CompatContext
+        fun create(): CompatContext
 
-        public companion object Companion {
+        companion object Companion {
             private const val COMPILER_VERSION_FILE = "META-INF/compiler.version"
 
-            public fun loadCompilerVersion(): KotlinToolingVersion {
+            fun loadCompilerVersion(): KotlinToolingVersion {
                 return KotlinToolingVersion(loadCompilerVersionString())
             }
 
-            public fun loadCompilerVersionOrNull(): KotlinToolingVersion? {
+            fun loadCompilerVersionOrNull(): KotlinToolingVersion? {
                 return loadCompilerVersionStringOrNull()?.let(::KotlinToolingVersion)
             }
 
-            public fun loadCompilerVersionString(): String {
+            fun loadCompilerVersionString(): String {
                 return loadCompilerVersionStringOrNull()
                     ?: throw AssertionError(
                         "'$COMPILER_VERSION_FILE' not found in the classpath or was blank",
                     )
             }
 
-            public fun loadCompilerVersionStringOrNull(): String? {
+            fun loadCompilerVersionStringOrNull(): String? {
                 val inputStream =
                     FirExtensionRegistrar::class.java.classLoader?.getResourceAsStream(COMPILER_VERSION_FILE)
                         ?: return null

@@ -69,6 +69,18 @@ public class JvmBoxTestGenerated extends AbstractJvmBoxTest {
   }
 
   @Test
+  @TestMetadata("generics_sealed_bound.kt")
+  public void testGenerics_sealed_bound() {
+    runTest("compiler-plugin/testData/box/generics_sealed_bound.kt");
+  }
+
+  @Test
+  @TestMetadata("generics_user_bound.kt")
+  public void testGenerics_user_bound() {
+    runTest("compiler-plugin/testData/box/generics_user_bound.kt");
+  }
+
+  @Test
   @TestMetadata("inheritance.kt")
   public void testInheritance() {
     runTest("compiler-plugin/testData/box/inheritance.kt");

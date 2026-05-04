@@ -22,8 +22,18 @@ import org.jetbrains.kotlin.fir.plugin.SimpleFunctionBuildingContext
 import org.jetbrains.kotlin.fir.plugin.createMemberFunction
 import org.jetbrains.kotlin.fir.plugin.createMemberProperty
 import org.jetbrains.kotlin.fir.plugin.createNestedClass
+import org.jetbrains.kotlin.fir.resolve.ScopeSession
+import org.jetbrains.kotlin.fir.resolve.SupertypeSupplier
+import org.jetbrains.kotlin.fir.resolve.TypeResolutionConfiguration
+import org.jetbrains.kotlin.fir.resolve.providers.firProvider
+import org.jetbrains.kotlin.fir.resolve.transformers.FirSpecificTypeResolverTransformer
+import org.jetbrains.kotlin.fir.scopes.createImportingScopes
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.name.Name
 
 public open class CompatContextImpl : CompatContext {
@@ -88,6 +98,34 @@ public open class CompatContextImpl : CompatContext {
         classKind = classKind,
         config = config,
     )
+
+    // Drives FIR's own resolver over the file's importing scopes so we don't depend on the spec
+    // having reached TYPES phase. Used by the FIR plugin to read type-parameter bounds while
+    // still inside SUPER_TYPES, where `FirTypeParameterSymbol.resolvedBounds` would crash.
+    @OptIn(SymbolInternals::class)
+    override fun FirExtension.resolveTypeRefCompat(
+        typeRef: FirTypeRef,
+        contextSymbol: FirRegularClassSymbol,
+    ): FirResolvedTypeRef {
+        if (typeRef is FirResolvedTypeRef) return typeRef
+
+        val file = session.firProvider.getFirClassifierContainerFile(contextSymbol)
+        val scopes = createImportingScopes(file, session, ScopeSession(), useCaching = true)
+        val configuration = TypeResolutionConfiguration(
+            scopes = scopes,
+            containingClassDeclarations = listOf(contextSymbol.fir),
+            useSiteFile = file,
+            topContainer = contextSymbol.fir,
+        )
+        val transformer = FirSpecificTypeResolverTransformer(
+            session = session,
+            errorTypeAsResolved = false,
+            resolveDeprecations = false,
+            supertypeSupplier = SupertypeSupplier.Default,
+            expandTypeAliases = true,
+        )
+        return transformer.transformTypeRef(typeRef, configuration)
+    }
 
     override fun FirRegularClass.replaceAnnotationsCompat(
         annotations: List<FirAnnotation>,
