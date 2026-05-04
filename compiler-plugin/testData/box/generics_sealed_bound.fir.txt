@@ -1,0 +1,108 @@
+Module: lib
+FILE: cursor_query.kt
+    package foo.lib
+
+    public abstract interface CursorQueryShape : R|kotlin/Any| {
+        public abstract val page: R|kotlin/Int|
+            public get(): R|kotlin/Int|
+
+    }
+    public final data class Q : R|foo/lib/CursorQueryShape| {
+        public constructor(page: R|kotlin/Int|): R|foo/lib/Q| {
+            super<R|kotlin/Any|>()
+        }
+
+        public open override val page: R|kotlin/Int| = R|<local>/page|
+            public get(): R|kotlin/Int|
+
+        public final operator fun component1(): R|kotlin/Int|
+
+        public final fun copy(page: R|kotlin/Int| = this@R|foo/lib/Q|.R|foo/lib/Q.page|): R|foo/lib/Q|
+
+    }
+Module: app
+FILE: app.kt
+    package foo.app
+
+    @R|com/tunjid/snapshottable/Snapshottable|() public sealed interface TilingShape<Query : R|foo/lib/CursorQueryShape|, Item> : R|kotlin/Any| {
+        public abstract val currentQuery: R|Query|
+            public get(): R|Query|
+
+        public abstract val items: R|kotlin/collections/List<Item>|
+            public get(): R|kotlin/collections/List<Item>|
+
+        @R|com/tunjid/snapshottable/SnapshotSpec|() public final data class Immutable<Query : R|foo/lib/CursorQueryShape|, Item> : R|foo/app/TilingShape<Query, Item>| {
+            public constructor<Query : R|foo/lib/CursorQueryShape|, Item>(currentQuery: R|Query|, items: R|kotlin/collections/List<Item>|): R|foo/app/TilingShape.Immutable<Query, Item>| {
+                super<R|kotlin/Any|>()
+            }
+
+            public open override val currentQuery: R|Query| = R|<local>/currentQuery|
+                public get(): R|Query|
+
+            public open override val items: R|kotlin/collections/List<Item>| = R|<local>/items|
+                public get(): R|kotlin/collections/List<Item>|
+
+            public final operator fun component1(): R|Query|
+
+            public final operator fun component2(): R|kotlin/collections/List<Item>|
+
+            public final fun copy(currentQuery: R|Query| = this@R|foo/app/TilingShape.Immutable|.R|foo/app/TilingShape.Immutable.currentQuery|, items: R|kotlin/collections/List<Item>| = this@R|foo/app/TilingShape.Immutable|.R|foo/app/TilingShape.Immutable.items|): R|foo/app/TilingShape.Immutable<Query, Item>|
+
+            public final fun toSnapshotMutable(): R|foo/app/TilingShape.SnapshotMutable<Query, Item>|
+
+        }
+
+        @R|androidx/compose/runtime/Stable|() public final class SnapshotMutable<Query : R|foo/lib/CursorQueryShape|, Item> : R|foo/app/TilingShape<Query, Item>| {
+            public final override var currentQuery: R|Query|
+                public get(): R|Query|
+                public set(value: R|Query|): R|kotlin/Unit|
+
+            public final override var items: R|kotlin/collections/List<Item>|
+                public get(): R|kotlin/collections/List<Item>|
+                public set(value: R|kotlin/collections/List<Item>|): R|kotlin/Unit|
+
+            public final fun toSnapshotSpec(): R|foo/app/TilingShape.Immutable<Query, Item>|
+
+            public final fun update(currentQuery: R|Query| = R|kotlin/error|(), items: R|kotlin/collections/List<Item>| = R|kotlin/error|()): R|foo/app/TilingShape.SnapshotMutable<Query, Item>|
+
+            public constructor<Query : R|foo/lib/CursorQueryShape|, Item>(currentQuery: R|Query|, items: R|kotlin/collections/List<Item>|): R|foo/app/TilingShape.SnapshotMutable<Query, Item>|
+
+        }
+
+    }
+    public final fun box(): R|kotlin/String| {
+        lval state: R|foo/app/TilingShape.SnapshotMutable<foo/lib/Q, kotlin/String>| = Q|foo/app/TilingShape|.R|foo/app/TilingShape.Immutable.Immutable|<R|foo/lib/Q|, R|kotlin/String|>(R|foo/lib/Q.Q|(Int(0)), R|kotlin/collections/listOf|<R|kotlin/String|>(String(a))).R|SubstitutionOverride<foo/app/TilingShape.Immutable.toSnapshotMutable: R|foo/app/TilingShape.SnapshotMutable<foo/lib/Q, kotlin/String>|>|()
+        when () {
+            !=(R|<local>/state|.R|SubstitutionOverride<foo/app/TilingShape.SnapshotMutable.currentQuery: R|foo/lib/Q|>|.R|foo/lib/Q.page|, Int(0)) ->  {
+                ^box String(Fail 1)
+            }
+        }
+
+        when () {
+            !=(R|<local>/state|.R|SubstitutionOverride<foo/app/TilingShape.SnapshotMutable.items: R|kotlin/collections/List<kotlin/String>|>|, R|kotlin/collections/listOf|<R|kotlin/String|>(String(a))) ->  {
+                ^box String(Fail 2)
+            }
+        }
+
+        R|<local>/state|.R|SubstitutionOverride<foo/app/TilingShape.SnapshotMutable.update: R|foo/app/TilingShape.SnapshotMutable<foo/lib/Q, kotlin/String>|>|(R|foo/lib/Q.Q|(Int(1)))
+        when () {
+            !=(R|<local>/state|.R|SubstitutionOverride<foo/app/TilingShape.SnapshotMutable.currentQuery: R|foo/lib/Q|>|.R|foo/lib/Q.page|, Int(1)) ->  {
+                ^box String(Fail 3)
+            }
+        }
+
+        lval spec: R|foo/app/TilingShape.Immutable<foo/lib/Q, kotlin/String>| = R|<local>/state|.R|SubstitutionOverride<foo/app/TilingShape.SnapshotMutable.toSnapshotSpec: R|foo/app/TilingShape.Immutable<foo/lib/Q, kotlin/String>|>|()
+        when () {
+            !=(R|<local>/spec|.R|SubstitutionOverride<foo/app/TilingShape.Immutable.currentQuery: R|foo/lib/Q|>|.R|foo/lib/Q.page|, Int(1)) ->  {
+                ^box String(Fail 4)
+            }
+        }
+
+        when () {
+            !=(R|<local>/spec|.R|SubstitutionOverride<foo/app/TilingShape.Immutable.items: R|kotlin/collections/List<kotlin/String>|>|, R|kotlin/collections/listOf|<R|kotlin/String|>(String(a))) ->  {
+                ^box String(Fail 5)
+            }
+        }
+
+        ^box String(OK)
+    }

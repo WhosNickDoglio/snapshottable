@@ -1,5 +1,3 @@
-@file:OptIn(org.jetbrains.kotlin.fir.symbols.SymbolInternals::class)
-
 package com.tunjid.snapshottable.fir
 
 import com.tunjid.snapshottable.Snapshottable
@@ -25,6 +23,7 @@ import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
 import org.jetbrains.kotlin.fir.scopes.impl.toConeType
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
@@ -69,6 +68,7 @@ inline fun <reified T : Snapshottable.Keys> FirClassSymbol<*>.requireKey(): T {
 fun FirSession.findClassSymbol(classId: ClassId) =
     symbolProvider.getClassLikeSymbolByClassId(classId) as? FirClassSymbol
 
+@OptIn(SymbolInternals::class)
 fun FirExtension.generateMutableClass(
     parentInterfaceSymbol: FirClassSymbol<*>,
     compatContext: CompatContext,
@@ -91,20 +91,30 @@ fun FirExtension.generateMutableClass(
             name = CLASS_NAME_SNAPSHOT_MUTABLE,
             key = key,
         ) {
-            specTypeParameterSymbols.forEach { specTp ->
+            specTypeParameterSymbols.forEach { specTypeParameter ->
                 typeParameter(
-                    name = specTp.name,
-                    variance = specTp.variance,
+                    name = specTypeParameter.name,
+                    variance = specTypeParameter.variance,
                     isReified = false,
                     key = key,
                 ) {
-                    specTp.resolvedBounds.forEach { boundRef ->
+                    // Read raw `bounds`, not `resolvedBounds`. We're inside the SUPER_TYPES
+                    // phase of the parent interface, so the spec's bounds may still be
+                    // FirUserTypeRef. Drive resolution ourselves via CompatContext to avoid
+                    // the unchecked cast inside `resolvedBounds` (which would crash for any
+                    // bound that depends on cross-module / non-stdlib symbols).
+                    specTypeParameter.fir.bounds.forEachIndexed { boundIndex, _ ->
                         bound { newRefs ->
+                            val rawBound = specTypeParameter.fir.bounds[boundIndex]
+                            val resolvedBound = resolveTypeRefCompat(
+                                typeRef = rawBound,
+                                contextSymbol = specSymbol,
+                            )
                             specToOwnerRefsSubstitutor(
                                 session = session,
                                 specTypeParameterSymbols = specTypeParameterSymbols,
                                 ownerTypeParameterRefs = newRefs,
-                            ).substituteOrSelf(boundRef.coneType)
+                            ).substituteOrSelf(resolvedBound.coneType)
                         }
                     }
                 }

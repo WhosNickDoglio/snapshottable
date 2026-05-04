@@ -1,0 +1,98 @@
+Module: lib
+FILE: marker.kt
+    package foo.lib
+
+    public abstract interface Marker : R|kotlin/Any| {
+        public abstract val tag: R|kotlin/String|
+            public get(): R|kotlin/String|
+
+    }
+    public final class Tagged : R|foo/lib/Marker| {
+        public constructor(tag: R|kotlin/String|): R|foo/lib/Tagged| {
+            super<R|kotlin/Any|>()
+        }
+
+        public open override val tag: R|kotlin/String| = R|<local>/tag|
+            public get(): R|kotlin/String|
+
+    }
+Module: app
+FILE: app.kt
+    package foo.app
+
+    public final fun box(): R|kotlin/String| {
+        lval state: R|foo/app/MarkerState.SnapshotMutable<foo/lib/Tagged>| = Q|foo/app/MarkerState|.R|foo/app/MarkerState.Immutable.Immutable|<R|foo/lib/Tagged|>(R|foo/lib/Tagged.Tagged|(String(first)), String(one)).R|SubstitutionOverride<foo/app/MarkerState.Immutable.toSnapshotMutable: R|foo/app/MarkerState.SnapshotMutable<foo/lib/Tagged>|>|()
+        when () {
+            !=(R|<local>/state|.R|SubstitutionOverride<foo/app/MarkerState.SnapshotMutable.value: R|foo/lib/Tagged|>|.R|foo/lib/Tagged.tag|, String(first)) ->  {
+                ^box String(Fail 1)
+            }
+        }
+
+        when () {
+            !=(R|<local>/state|.R|SubstitutionOverride<foo/app/MarkerState.SnapshotMutable.label: R|kotlin/String|>|, String(one)) ->  {
+                ^box String(Fail 2)
+            }
+        }
+
+        R|<local>/state|.R|SubstitutionOverride<foo/app/MarkerState.SnapshotMutable.value: R|foo/lib/Tagged|>| = R|foo/lib/Tagged.Tagged|(String(second))
+        R|<local>/state|.R|SubstitutionOverride<foo/app/MarkerState.SnapshotMutable.update: R|foo/app/MarkerState.SnapshotMutable<foo/lib/Tagged>|>|(String(two))
+        when () {
+            !=(R|<local>/state|.R|SubstitutionOverride<foo/app/MarkerState.SnapshotMutable.toSnapshotSpec: R|foo/app/MarkerState.Immutable<foo/lib/Tagged>|>|().R|SubstitutionOverride<foo/app/MarkerState.Immutable.value: R|foo/lib/Tagged|>|.R|foo/lib/Tagged.tag|, String(second)) ->  {
+                ^box String(Fail 3)
+            }
+        }
+
+        when () {
+            !=(R|<local>/state|.R|SubstitutionOverride<foo/app/MarkerState.SnapshotMutable.toSnapshotSpec: R|foo/app/MarkerState.Immutable<foo/lib/Tagged>|>|().R|SubstitutionOverride<foo/app/MarkerState.Immutable.label: R|kotlin/String|>|, String(two)) ->  {
+                ^box String(Fail 4)
+            }
+        }
+
+        ^box String(OK)
+    }
+    @R|com/tunjid/snapshottable/Snapshottable|() public abstract interface MarkerState<T : R|foo/lib/Marker|> : R|kotlin/Any| {
+        public abstract val value: R|T|
+            public get(): R|T|
+
+        public abstract val label: R|kotlin/String|
+            public get(): R|kotlin/String|
+
+        @R|com/tunjid/snapshottable/SnapshotSpec|() public final data class Immutable<T : R|foo/lib/Marker|> : R|foo/app/MarkerState<T>| {
+            public constructor<T : R|foo/lib/Marker|>(value: R|T|, label: R|kotlin/String| = String(default)): R|foo/app/MarkerState.Immutable<T>| {
+                super<R|kotlin/Any|>()
+            }
+
+            public open override val value: R|T| = R|<local>/value|
+                public get(): R|T|
+
+            public open override val label: R|kotlin/String| = R|<local>/label|
+                public get(): R|kotlin/String|
+
+            public final operator fun component1(): R|T|
+
+            public final operator fun component2(): R|kotlin/String|
+
+            public final fun copy(value: R|T| = this@R|foo/app/MarkerState.Immutable|.R|foo/app/MarkerState.Immutable.value|, label: R|kotlin/String| = this@R|foo/app/MarkerState.Immutable|.R|foo/app/MarkerState.Immutable.label|): R|foo/app/MarkerState.Immutable<T>|
+
+            public final fun toSnapshotMutable(): R|foo/app/MarkerState.SnapshotMutable<T>|
+
+        }
+
+        @R|androidx/compose/runtime/Stable|() public final class SnapshotMutable<T : R|foo/lib/Marker|> : R|foo/app/MarkerState<T>| {
+            public final override var value: R|T|
+                public get(): R|T|
+                public set(value: R|T|): R|kotlin/Unit|
+
+            public final override var label: R|kotlin/String|
+                public get(): R|kotlin/String|
+                public set(value: R|kotlin/String|): R|kotlin/Unit|
+
+            public final fun toSnapshotSpec(): R|foo/app/MarkerState.Immutable<T>|
+
+            public final fun update(value: R|T| = R|kotlin/error|(), label: R|kotlin/String| = R|kotlin/error|()): R|foo/app/MarkerState.SnapshotMutable<T>|
+
+            public constructor<T : R|foo/lib/Marker|>(value: R|T|, label: R|kotlin/String|): R|foo/app/MarkerState.SnapshotMutable<T>|
+
+        }
+
+    }
