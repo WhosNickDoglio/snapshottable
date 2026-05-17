@@ -1,5 +1,9 @@
 # Snapshottable
 
+<p align="center">
+  <img src="docs/images/snapshottable-logo-trimmed.png" alt="Snapshottable logo" width="160"/>
+</p>
+
 Snapshottable is a Kotlin compiler plugin that automatically generates mutable, snapshot-backed classes from immutable data definitions. It is designed to simplify state management in Jetpack Compose (and other Compose-based UI frameworks) by allowing you to define your state as clean, immutable interfaces and data classes, while automatically generating the mutable, observable counterparts needed for the UI.
 
 ## Features
@@ -19,7 +23,7 @@ Snapshottable is a Kotlin compiler plugin that automatically generates mutable, 
 
     ```kotlin
     import com.tunjid.snapshottable.Snapshottable
-    import com.tunjid.snapshottable.SnapshotSpec
+import com.tunjid.snapshottable.SnapshotSpec
     import kotlinx.serialization.Serializable
     import kotlinx.parcelize.Parcelize
     import android.os.Parcelable
@@ -42,18 +46,24 @@ Snapshottable is a Kotlin compiler plugin that automatically generates mutable, 
     @Snapshottable
     interface State {
 
+        // Generated: properties hoisted onto the interface
         val count: Int
         val text: String
-          
+
         @Serializable
         @Parcelize
         @SnapshotSpec
         data class Immutable(
             override val count: Int = 0,
             override val text: String = "Hello"
-        ) : State, Parcelable
+        ) : State, Parcelable {
 
-        // Generated nested class
+            // Generated: convert the immutable spec into the mutable, snapshot-backed class
+            fun toSnapshotMutable(): SnapshotMutable
+        }
+
+        // Generated nested class, backed by Compose snapshot state
+        @Stable
         class SnapshotMutable(
             count: Int,
             text: String
@@ -61,6 +71,10 @@ Snapshottable is a Kotlin compiler plugin that automatically generates mutable, 
             override var count: Int by mutableIntStateOf(count)
             override var text: String by mutableStateOf(text)
 
+            // Generated: convert back to the immutable spec
+            fun toSnapshotSpec(): Immutable
+
+            // Generated: bulk update; omitted arguments keep their current value
             fun update(
                 count: Int = this.count,
                 text: String = this.text
@@ -69,11 +83,6 @@ Snapshottable is a Kotlin compiler plugin that automatically generates mutable, 
                 this.text = text
                 return this
             }
-        }
-        
-        companion object {
-             fun State.Immutable.toSnapshotMutable(): SnapshotMutable = State.SnapshotMutable(...)
-             fun State.SnapshotMutable.toSnapshotSpec(): Immutable = State.Immutable(...)
         }
     }
     ```
@@ -88,9 +97,6 @@ Snapshottable is a Kotlin compiler plugin that automatically generates mutable, 
     import androidx.compose.runtime.saveable.Saver
     import com.tunjid.snapshottable.Snapshottable
     import com.tunjid.snapshottable.SnapshotSpec
-    // Import generated extension functions
-    import com.example.mypackage.State.Companion.toSnapshotMutable
-    import com.example.mypackage.State.Companion.toSnapshotSpec
 
     @Composable
     fun Counter() {
@@ -127,7 +133,6 @@ Snapshottable is a Kotlin compiler plugin that automatically generates mutable, 
 
     ```kotlin
     import androidx.lifecycle.ViewModel
-    import com.example.mypackage.State.Companion.toSnapshotSpec
 
     class MyViewModel : ViewModel() {
         // Internal mutable state
