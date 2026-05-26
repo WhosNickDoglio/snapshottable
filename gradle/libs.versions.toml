@@ -1,6 +1,6 @@
 [versions]
 axion-release = "1.21.1"
-composeMultiplatform = "1.10.0"
+composeMultiplatform = "1.11.0"
 dokka = "2.1.0"
 
 # https://github.com/JetBrains/kotlin
